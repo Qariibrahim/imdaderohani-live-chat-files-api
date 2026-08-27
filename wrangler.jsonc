@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "imdaderohani-live-chat-files-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-27",
+  "r2_buckets": [
+    {
+      "binding": "LIVE_CHAT_FILES",
+      "bucket_name": "imdaderohani-live-chat-files"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}
