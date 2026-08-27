@@ -5,8 +5,9 @@ const ALLOWED_ORIGINS = new Set([
 const FIREBASE_API_KEY = "AIzaSyC6bhgW8pXu_LFlJ9SvTrveXj-nKLsdQws";
 const ADMIN_UID = "7ybBWGwZipX3sM9iLrdGIgOo3l92";
 const RETENTION_DAYS = 30;
-const DAILY_FILE_LIMIT = 20;
-const DAILY_BYTE_LIMIT = 100 * 1024 * 1024;
+// File-count limit removed so short voice notes do not exhaust a user's day.
+// The byte quota remains as abuse/billing protection and allows normal media use.
+const DAILY_BYTE_LIMIT = 250 * 1024 * 1024;
 
 const TYPE_RULES = new Map([
   ["image/jpeg", { category: "image", max: 5 * 1024 * 1024 }],
@@ -230,7 +231,6 @@ async function takeDailyQuota(env, uid, bytes) {
     }
   }
 
-  if (current.files + 1 > DAILY_FILE_LIMIT) return { ok: false, error: "DAILY_FILE_LIMIT" };
   if (current.bytes + bytes > DAILY_BYTE_LIMIT) return { ok: false, error: "DAILY_SIZE_LIMIT" };
 
   await env.LIVE_CHAT_FILES.put(
