@@ -36,3 +36,4 @@ npm run deploy
 Do not make the R2 bucket public. Files are served only after Firebase user
 authorization.
 GitHub deployment enabled.
+Deployment successfully verified.
