@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "imdaderohani-live-chat-files-api",
-  "main": "src/index.js",
+  "main": "index.js",
   "compatibility_date": "2026-08-27",
   "r2_buckets": [
     {
