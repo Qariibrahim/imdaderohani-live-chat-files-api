@@ -121,7 +121,7 @@ async function uploadFile(request, env, user, cors) {
 
   const now = new Date();
   const expiresAt = new Date(now.getTime() + RETENTION_DAYS * 86400000);
-  const objectKey = `${user.uid}/${now.toISOString().slice(0, 10)}/${crypto.randomUUID()}-${originalName}`;
+  const objectKey = `${user.uid}/${now.toISOString().slice(0, 10)}/${crypto.randomUUID()}`;
 
   try {
     const stored = await env.LIVE_CHAT_FILES.put(objectKey, request.body, {
