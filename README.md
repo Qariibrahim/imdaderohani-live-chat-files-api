@@ -11,6 +11,7 @@ Private Cloudflare R2 upload and download API for the live-chat system on
 - Allowed website: `https://qrc.imdaderohani.in`
 - Firebase Authentication token verification
 - Private image, PDF, audio and video storage
+- Private text, coding, Word, Excel, PowerPoint and ZIP document storage
 
 ## Deploy from GitHub through Cloudflare
 
