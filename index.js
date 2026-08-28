@@ -42,7 +42,7 @@ const TYPE_RULES = new Map([
 ]);
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const origin = request.headers.get("Origin") || "";
     const cors = corsHeaders(origin);
 
@@ -64,7 +64,7 @@ export default {
         return json({ ok: false, error: "ORIGIN_NOT_ALLOWED" }, 403, cors);
       }
 
-      const user = await verifyFirebaseUser(request);
+      const user = await verifyFirebaseUser(request, ctx);
       if (!user) {
         return json({ ok: false, error: "UNAUTHORIZED" }, 401, cors);
       }
@@ -89,12 +89,27 @@ export default {
   },
 };
 
-async function verifyFirebaseUser(request) {
+async function verifyFirebaseUser(request, ctx) {
   const authorization = request.headers.get("Authorization") || "";
   if (!authorization.startsWith("Bearer ")) return null;
 
   const idToken = authorization.slice(7).trim();
   if (!idToken) return null;
+
+  // A chat screen can request several private thumbnails at once. Reusing a
+  // successful lookup for two minutes avoids one Google round-trip per file
+  // while every R2 request still requires the same valid bearer token.
+  const tokenDigest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(idToken),
+  );
+  const tokenHash = Array.from(new Uint8Array(tokenDigest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+  const authCache = caches.default;
+  const authCacheKey = new Request(`https://firebase-auth-cache.invalid/${tokenHash}`);
+  const cachedUser = await authCache.match(authCacheKey);
+  if (cachedUser) return cachedUser.json();
 
   const response = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`,
@@ -110,7 +125,22 @@ async function verifyFirebaseUser(request) {
   const firebaseUser = result?.users?.[0];
   if (!firebaseUser?.localId || firebaseUser.disabled === true) return null;
 
-  return { uid: firebaseUser.localId, isAdmin: firebaseUser.localId === ADMIN_UID };
+  const verifiedUser = {
+    uid: firebaseUser.localId,
+    isAdmin: firebaseUser.localId === ADMIN_UID,
+  };
+  const cacheWrite = authCache.put(
+    authCacheKey,
+    new Response(JSON.stringify(verifiedUser), {
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, max-age=120",
+      },
+    }),
+  );
+  if (ctx?.waitUntil) ctx.waitUntil(cacheWrite);
+  else await cacheWrite;
+  return verifiedUser;
 }
 
 async function uploadFile(request, env, user, cors) {
@@ -145,7 +175,7 @@ async function uploadFile(request, env, user, cors) {
       httpMetadata: {
         contentType,
         contentDisposition: `inline; filename="${asciiFileName(originalName)}"`,
-        cacheControl: "private, no-store",
+        cacheControl: "private, max-age=300",
       },
       customMetadata: {
         ownerUid: user.uid,
@@ -195,7 +225,7 @@ async function serveFile(request, env, user, rawKey, cors) {
   object.writeHttpMetadata(headers);
   headers.set("ETag", object.httpEtag);
   headers.set("Accept-Ranges", "bytes");
-  headers.set("Cache-Control", "private, no-store");
+  headers.set("Cache-Control", "private, max-age=300");
   headers.set("X-Content-Type-Options", "nosniff");
 
   const originalName = object.customMetadata?.originalName || "attachment";
