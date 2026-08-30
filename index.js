@@ -1,5 +1,6 @@
 const ALLOWED_ORIGINS = new Set([
   "https://qrc.imdaderohani.in",
+  "https://live-chat-admin.imdaderohani.in",
 ]);
 
 const FIREBASE_API_KEY = "AIzaSyC6bhgW8pXu_LFlJ9SvTrveXj-nKLsdQws";
