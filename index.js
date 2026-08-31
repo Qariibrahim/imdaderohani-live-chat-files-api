@@ -218,7 +218,9 @@ async function serveFile(request, env, user, rawKey, cors) {
   if (!object) return json({ ok: false, error: "FILE_NOT_FOUND" }, 404, cors);
 
   const ownerUid = object.customMetadata?.ownerUid || key.split("/")[0];
-  if (!user.isAdmin && ownerUid !== user.uid) {
+  // Admin ki bheji file ka key sirf us chat message ke authenticated
+  // recipient ko milta hai. Random R2 key ke baghair file discover nahi hoti.
+  if (!user.isAdmin && ownerUid !== user.uid && ownerUid !== ADMIN_UID) {
     return json({ ok: false, error: "FILE_ACCESS_DENIED" }, 403, cors);
   }
 
