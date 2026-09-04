@@ -151,19 +151,40 @@ async function uploadFile(request, env, user, cors) {
   const originalName = cleanFileName(decodeHeader(request.headers.get("X-File-Name") || "file"));
   const contentType = normalizeType(request.headers.get("Content-Type") || "");
   const claimedSize = Number(request.headers.get("X-File-Size") || 0);
-  const contentLength = Number(request.headers.get("Content-Length") || 0);
   const rule = TYPE_RULES.get(contentType);
 
   if (!rule) return json({ ok: false, error: "FILE_TYPE_NOT_ALLOWED" }, 415, cors);
   if (!Number.isSafeInteger(claimedSize) || claimedSize <= 0) {
     return json({ ok: false, error: "FILE_SIZE_INVALID" }, 400, cors);
   }
-  if (contentLength > 0 && contentLength !== claimedSize) {
-    return json({ ok: false, error: "FILE_SIZE_MISMATCH" }, 400, cors);
-  }
   if (claimedSize > rule.max) {
-    return json({ ok: false, error: "FILE_TOO_LARGE", maxBytes: rule.max }, 413, cors);
-  }
+  return json(
+    {
+      ok: false,
+      error: "FILE_TOO_LARGE",
+      maxBytes: rule.max
+    },
+    413,
+    cors
+  );
+}
+
+/*
+ * Mobile Chrome ke raw upload stream ko pehle complete bytes
+ * mein badalta hai, taaki R2 upload ke aakhir mein fail na ho.
+ */
+const fileBytes = await request.arrayBuffer();
+
+if (fileBytes.byteLength !== claimedSize) {
+  return json(
+    {
+      ok: false,
+      error: "FILE_SIZE_MISMATCH"
+    },
+    400,
+    cors
+  );
+}
 
   const quota = await takeDailyQuota(env, user.uid, claimedSize);
   if (!quota.ok) return json({ ok: false, error: quota.error }, 429, cors);
@@ -173,7 +194,7 @@ async function uploadFile(request, env, user, cors) {
   const objectKey = `${user.uid}/${now.toISOString().slice(0, 10)}/${crypto.randomUUID()}`;
 
   try {
-    const stored = await env.LIVE_CHAT_FILES.put(objectKey, request.body, {
+    const stored = await env.LIVE_CHAT_FILES.put(objectKey, fileBytes, {
       httpMetadata: {
         contentType,
         contentDisposition: `inline; filename="${asciiFileName(originalName)}"`,
